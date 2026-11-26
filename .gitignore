@@ -72,13 +72,3 @@ __pycache__/
 # Claude Code ローカル設定・ランタイム(マシン固有、追跡しない)
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
-
-# uloop(Unity の io.github.hatayama.uloopmcp)の生成物。追跡するのは .uloop の設定ファイルだけ
-# - outputs/: スクリーンショットなどツールの出力
-# - .claude/.codex の skills/uloop-* と v3-cli-invocation-migration: uloop の Skills 導入が
-#   パッケージの版に合わせて書き出すコピー。追跡すると版がずれる(oscdesk の HID-442)
-/.uloop/outputs/
-/.claude/skills/uloop-*/
-/.codex/skills/uloop-*/
-/.claude/skills/v3-cli-invocation-migration/
-/.codex/skills/v3-cli-invocation-migration/

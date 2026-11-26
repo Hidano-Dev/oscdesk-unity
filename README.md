@@ -17,7 +17,7 @@ oscdesk リポジトリの `OscSurface/` から、履歴ごと切り出しまし
 | パス | 内容 |
 |---|---|
 | `Packages/com.hidano.oscdesk/` | 受け口の UPM パッケージ(使い方はその `README.md`) |
-| `Packages/manifest.json` | 検証用プロジェクトの依存。`testables` でパッケージのテストを Test Runner と CI に出す |
+| `Packages/manifest.json` | 検証用プロジェクトの依存。`testables` でパッケージのテストを Test Runner と CI に出す。`com.unity.pipeline` は Unity CLI が Editor を操作するための口(検証用プロジェクトだけの依存で、受け口のパッケージは依存しない) |
 | `Assets/` `ProjectSettings/` | 検証用プロジェクト(Unity 6000.0.36f1) |
 | `scripts/check_package.py` | パッケージの検査(見本の写しの一致・`.meta`・版と CHANGELOG) |
 | `docs/UPM_PACKAGE.md` | 版の付け方と npmjs への公開の手順 |
@@ -33,9 +33,42 @@ npmjs のスコープ付きレジストリから入れる方法と、git の URL
 
 以前の `https://github.com/Hidano-Dev/oscdesk.git?path=OscSurface/Packages/com.hidano.oscdesk` で参照していたプロジェクトは、`Packages/manifest.json` の URL を上のものに書き換え、Unity で開いて `Packages/packages-lock.json` を更新させてからコミットします。`#<ref>` で版を固定していた場合は、このリポジトリのタグかコミットに読み替えます(切り出しでコミットの SHA が変わったため、oscdesk の ref はこのリポジトリに無い)。
 
+## Unity CLI での操作
+
+Editor の起動・操作・テストは公式の Unity CLI(`unity` コマンド)で行います。uloop は使いません。CLI は Editor の中の `com.unity.pipeline`(`Packages/manifest.json` に入っている)が `localhost:7800` に開く API を通して Editor を操作します。CLI の導入と使い方は Unity の文書([Use the Unity CLI](https://docs.unity.com/en-us/unity-cli/use-unity-cli)・[Unity Pipeline package](https://docs.unity.com/en-us/unity-production-pipeline/local-tools-cli/unity-pipeline-package))を見てください。
+
+```powershell
+# 1. 起動(ProjectVersion.txt の版の Editor を選ぶ。-automated でブロッキングダイアログを出さない)
+unity open "<このリポジトリのクローン>" --args "-automated"
+
+# 2. 繋がるまで待つ(State が ready で出たら使える。起動直後は出ないか API が 503 を返すので再試行する)
+unity status
+
+# 3. Editor へのコマンド(名前は「グループ 名前」の 2 語を 1 つの引数にする。一覧は unity list)
+unity command "editor status"
+unity command "console get"
+unity command "test run" --mode editor      # 開いている Editor で EditMode テストを走らせる
+
+# 4. 閉じる
+unity command "editor quit"
+```
+
+- 自分で開いた Editor だけを閉じます。人が作業中の Editor は閉じません
+- 接続中の Editor が複数あるときは、`unity command --project-path "<このリポジトリのクローン>" ...` で対象を選びます
+
 ## EditMode テストの実行
 
 C# の変更は、少なくとも EditMode テストを実行して結果を確かめます。
+
+### Unity CLI で
+
+Editor を開いていないときは `unity test` が batchmode で Editor を起動してテストを走らせ、結果を NUnit 形式の XML に書きます(版は `ProjectVersion.txt` から選ぶ)。
+
+```powershell
+unity test "<このリポジトリのクローン>" --mode EditMode --output "<絶対パス>\editmode-results.xml"
+```
+
+Editor を開いているときは batchmode を起動できない(プロジェクトロック)ので、上の「Unity CLI での操作」の `unity command "test run" --mode editor` で走らせます。
 
 ### Editor で
 
