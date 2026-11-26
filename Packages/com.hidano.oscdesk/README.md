@@ -25,6 +25,12 @@ Unity 6000.0 以降。`Packages/manifest.json` に npmjs のスコープ付き�
 }
 ```
 
+レジストリを使わずに git の URL で入れる場合は、`dependencies` に次のように書きます(版を固定するなら末尾に `#<タグかコミット>` を付けます)。
+
+```json
+"com.hidano.oscdesk": "https://github.com/Hidano-Dev/oscdesk-unity.git?path=Packages/com.hidano.oscdesk"
+```
+
 空の GameObject に `OscReceiver` を追加し、`Listen Port` を OscDesk の `unity.sendPort`(既定 7090)に、`Reply Host` / `Reply Port` を OscDesk を動かす PC : `bridge.oscListenPort`(既定 `127.0.0.1` : 7091)に合わせます。これだけで OscDesk の画面に到達性(RTT)が出ます。
 
 ## 構成
@@ -34,7 +40,7 @@ Unity 6000.0 以降。`Packages/manifest.json` に npmjs のスコープ付き�
 | `Runtime/Core/` | `OscDesk.Receiver`(`noEngineReferences: true`) | `UnityEngine` に依存しない純粋 C#。OSC のコーデック(`OscCodec`)、UDP(`OscUdpTransport`)、振り分け(`OscRouter`・`OscDispatcher`・アドレスのパターン `OscAddressPattern`)、接続確認とエコー(`OscLink`)、対応表の検査(`OscBindingAudit`)、定義 JSON の読み取り(`OscDefinitionReader`)、`OscRecord`、トリガ待ちのアプリで再送を適用する窓(`OscResendWindow`)、名前の一覧の正規化(`OscNameList`・`OscNameListFeed`)、レコードの帳簿(`OscKeyedBook<T>` / `OscUiRowBook<T>`)と読み取りの補助(`OscRecordReader`)、受け手の登録簿(`OscRegistry`・`OscOperation`・`OscAddressNames`)など |
 | `Runtime/` | `OscDesk.Receiver.Runtime` | MonoBehaviour。`OscReceiver`(中核を Unity のフレームと UnityEvent につなぐ)、`OscNameListPublisher`(名前の一覧を要求と変化で送る)、受け手の基底 `OscTarget` と生成担当 `OscSpawner` |
 | `Editor/` | `OscDesk.Receiver.Editor`(Editor のみ) | インスペクタ拡張 `OscReceiverEditor` / `OscTargetEditor`、重複した対象名の付け直し `OscTargetNameDeduplicator`、`[OscAddress]` の宣言からの配線 `OscReceiverWiring` |
-| `Tests/Editor/` | `OscDesk.Receiver.Tests`(Editor のみ、`UNITY_INCLUDE_TESTS`) | EditMode テスト。OSC のバイト列の見本 `osc-binary-samples.json`(リポジトリの `protocol/` の写し)を同梱 |
+| `Tests/Editor/` | `OscDesk.Receiver.Tests`(Editor のみ、`UNITY_INCLUDE_TESTS`) | EditMode テスト。OSC のバイト列の見本 `osc-binary-samples.json` と設計図の見本 `catalog-samples.json`(oscdesk リポジトリの `protocol/` の写し)を同梱 |
 | `Tests/PlayMode/` | `OscDesk.Receiver.PlayModeTests`(テストのアセンブリ、`UNITY_INCLUDE_TESTS`) | PlayMode テスト(`OscTarget` の有効化・無効化・破棄と `OscSpawner`) |
 | `Tests/Runtime/` | `OscDesk.Receiver.Tests.Fixtures`(テストのアセンブリ、`UNITY_INCLUDE_TESTS`) | EditMode テストが GameObject に付ける受け側の MonoBehaviour(Editor のアセンブリの MonoBehaviour は付けられないため) |
 | `Samples~/MinimalReceiver/` | なし(取り込むと `Assets/` の既定のアセンブリに入る) | 最小の受け口シーンと、それに合うサーフェス定義 |

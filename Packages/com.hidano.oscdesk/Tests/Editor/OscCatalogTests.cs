@@ -9,7 +9,7 @@ namespace OscDesk.Receiver.Tests
     // 設計図の送信(Catalog、D-114)。要約値は protocol/catalog-samples.json(TS の shared も読む見本)で縛る
     public sealed class OscCatalogTests
     {
-        // パッケージに同梱した写し。写しが protocol/ の原本と同じことは tests/guards/unity-package.test.ts が縛る
+        // パッケージに同梱した写し。写しが oscdesk の protocol/ の原本と同じことは scripts/check_package.py(Unity CI)が縛る
         private const string SamplesAssetPath = "Packages/com.hidano.oscdesk/Tests/Editor/catalog-samples.json";
 
         private static Dictionary<string, object> LoadSamples()

@@ -14,7 +14,7 @@ namespace OscDesk.Receiver.Tests
     public sealed class OscBinarySamplesTests
     {
         // パッケージに同梱した写し(D-096)。利用側のプロジェクト(testables)にはリポジトリの protocol/ が無いので、
-        // リポジトリを辿らずパッケージの中から読む。写しが protocol/ の原本と同じことは tests/guards/unity-package.test.ts が縛る
+        // リポジトリを辿らずパッケージの中から読む。写しが oscdesk の protocol/ の原本と同じことは scripts/check_package.py(Unity CI)が縛る
         private const string SamplesAssetPath = "Packages/com.hidano.oscdesk/Tests/Editor/osc-binary-samples.json";
 
         private static Dictionary<string, object> samples;
