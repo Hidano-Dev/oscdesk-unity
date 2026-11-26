@@ -1,0 +1,69 @@
+# oscdesk-unity Unity CI - 受け口のパッケージの検査と EditMode テスト
+#
+# oscdesk リポジトリ(Node / Python)から移したもの(oscdesk の DESIGN.md D-136)。リポジトリ直下が Unity プロジェクト。
+# 最初にパッケージの検査(scripts/check_package.py: 見本の写しと oscdesk の protocol/ の一致・.meta・版)を行い、
+# 続いて Unity Editor が必要な EditMode テスト(OscDesk.Receiver.Tests)を、
+# オンプレ Ubuntu のセルフホストランナー(ラベル linux-unity、Unity 6000.0.36f1 / Xvfb)で実行する。
+#
+#   - ランナーは 1 台のためジョブは直列に走る。同じ作業ディレクトリを共有するので、
+#     checkout は clean: false にして Library(import キャッシュ)を残し、
+#     それ以外の未追跡ファイルは git clean で毎回消す
+#   - public リポジトリのため、fork からの PR ではセルフホストランナーのジョブを起動しない
+#     (リポジトリ設定の「外部コントリビューターは承認必須」と二重の防御)
+#   - Unity のバージョンは composite action が ProjectSettings/ProjectVersion.txt と突き合わせる
+#   - 作業ブランチへの push では起動せず、PR(と main への push)で起動する。push と PR の両方で
+#     同じジョブを二重に走らせない
+name: Unity CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: unity-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UNITY_VERSION: 6000.0.36f1
+  UNITY_PROJECT_PATH: .
+  TEST_RESULTS_DIR: test-results
+
+jobs:
+  editmode-tests:
+    name: EditMode テスト(oscdesk-unity)
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux-unity]
+    timeout-minutes: 45
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+        with:
+          clean: false
+      - name: 作業ツリーの掃除(Library は保持)
+        run: git clean -ffdx -e /Library
+
+      - name: パッケージの検査(見本の写し・.meta・版)
+        # 見本の写しは oscdesk の main の protocol/ と比べる。oscdesk 側で見本が変わったら、
+        # この段が落ちるので写し直す(README.md「見本の同期」)
+        run: python3 scripts/check_package.py
+
+      - name: EditMode テスト実行
+        uses: ./.github/actions/run-unity-tests
+        with:
+          unity-version: ${{ env.UNITY_VERSION }}
+          project-path: ${{ env.UNITY_PROJECT_PATH }}
+          test-platform: EditMode
+          results-name: editmode
+
+      - name: テスト結果アップロード
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-editmode-results
+          path: |
+            ${{ env.TEST_RESULTS_DIR }}/editmode.xml
+            ${{ env.TEST_RESULTS_DIR }}/editmode.log
+          if-no-files-found: error
