@@ -1,6 +1,6 @@
 # OscDesk Receiver(`com.hidano.oscdesk`)
 
-OscDesk(LAN 内のブラウザ・スマートフォンから Unity を操作する OSC コントロールサーフェス)の、Unity 側の汎用の受け口です。受けた OSC のアドレスをインスペクタで登録した UnityEvent に振り分け、`/sys/ping` に `/sys/pong` を、値には同じアドレスへのエコーを返します。OSC 1.0 のコーデックと UDP を自前で持ち、外部パッケージには依存しません。
+OscDesk(LAN 内のブラウザ・スマートフォンから Unity を操作する OSC コントロールサーフェス)の、Unity 側の汎用の受け口です。受けた OSC のアドレスをインスペクタで登録した UnityEvent に振り分け、`/sys/ping` に `/sys/pong` を、値には同じアドレスへのエコーを返します。受けられるアドレスは OSCQuery の名前空間として HTTP / WebSocket で公開し、mDNS(`_oscjson._tcp`)で告知します。OSC 1.0 のコーデック・UDP・OSCQuery のサーバー・mDNS の応答側を自前で持ち、外部パッケージには依存しません。
 
 > **セキュリティ前提**: この経路に認証・暗号化はありません。信頼できる LAN 内でだけ使い、インターネットや信頼できないネットワークへ公開しないでください。
 
@@ -37,10 +37,10 @@ Unity 6000.0 以降。`Packages/manifest.json` に npmjs のスコープ付き�
 
 | フォルダ | アセンブリ(asmdef) | 中身 |
 |---|---|---|
-| `Runtime/Core/` | `OscDesk.Receiver`(`noEngineReferences: true`) | `UnityEngine` に依存しない純粋 C#。OSC のコーデック(`OscCodec`)、UDP(`OscUdpTransport`)、振り分け(`OscRouter`・`OscDispatcher`・アドレスのパターン `OscAddressPattern`)、接続確認とエコー(`OscLink`)、対応表の検査(`OscBindingAudit`)、定義 JSON の読み取り(`OscDefinitionReader`)、`OscRecord`、トリガ待ちのアプリで再送を適用する窓(`OscResendWindow`)、名前の一覧の正規化(`OscNameList`・`OscNameListFeed`)、レコードの帳簿(`OscKeyedBook<T>` / `OscUiRowBook<T>`)と読み取りの補助(`OscRecordReader`)、受け手の登録簿(`OscRegistry`・`OscOperation`・`OscAddressNames`)など |
-| `Runtime/` | `OscDesk.Receiver.Runtime` | MonoBehaviour。`OscReceiver`(中核を Unity のフレームと UnityEvent につなぐ)、`OscNameListPublisher`(名前の一覧を要求と変化で送る)、受け手の基底 `OscTarget` と生成担当 `OscSpawner` |
+| `Runtime/Core/` | `OscDesk.Receiver`(`noEngineReferences: true`) | `UnityEngine` に依存しない純粋 C#。OSC のコーデック(`OscCodec`)、UDP(`OscUdpTransport`)、振り分け(`OscRouter`・`OscDispatcher`・アドレスのパターン `OscAddressPattern`)、接続確認とエコー(`OscLink`)、対応表の検査(`OscBindingAudit`)、定義 JSON の読み取り(`OscDefinitionReader`)、`OscRecord`、トリガ待ちのアプリで再送を適用する窓(`OscResendWindow`)、OSCQuery(名前空間 `OscQueryTree`・HTTP と WebSocket `OscHttp` / `OscWebSocket`・mDNS `OscMdns`・サーバー `OscQueryServer`)、起動ごとの ID `OscBootId`、同期の合図 `OscSyncTracker`、レコードの帳簿(`OscKeyedBook<T>` / `OscUiRowBook<T>`)と読み取りの補助(`OscRecordReader`)、受け手の登録簿(`OscRegistry`・`OscOperation`・`OscAddressNames`)など |
+| `Runtime/` | `OscDesk.Receiver.Runtime` | MonoBehaviour。`OscReceiver`(中核を Unity のフレームと UnityEvent につなぐ)、受け手の基底 `OscTarget` と生成担当 `OscSpawner` |
 | `Editor/` | `OscDesk.Receiver.Editor`(Editor のみ) | インスペクタ拡張 `OscReceiverEditor` / `OscTargetEditor`、重複した対象名の付け直し `OscTargetNameDeduplicator`、`[OscAddress]` の宣言からの配線 `OscReceiverWiring` |
-| `Tests/Editor/` | `OscDesk.Receiver.Tests`(Editor のみ、`UNITY_INCLUDE_TESTS`) | EditMode テスト。OSC のバイト列の見本 `osc-binary-samples.json` と設計図の見本 `catalog-samples.json`(oscdesk リポジトリの `protocol/` の写し)を同梱 |
+| `Tests/Editor/` | `OscDesk.Receiver.Tests`(Editor のみ、`UNITY_INCLUDE_TESTS`) | EditMode テスト。OSC のバイト列の見本 `osc-binary-samples.json`(oscdesk リポジトリの `protocol/` の写し)を同梱 |
 | `Tests/PlayMode/` | `OscDesk.Receiver.PlayModeTests`(テストのアセンブリ、`UNITY_INCLUDE_TESTS`) | PlayMode テスト(`OscTarget` の有効化・無効化・破棄と `OscSpawner`) |
 | `Tests/Runtime/` | `OscDesk.Receiver.Tests.Fixtures`(テストのアセンブリ、`UNITY_INCLUDE_TESTS`) | EditMode テストが GameObject に付ける受け側の MonoBehaviour(Editor のアセンブリの MonoBehaviour は付けられないため) |
 | `Samples~/MinimalReceiver/` | なし(取り込むと `Assets/` の既定のアセンブリに入る) | 最小の受け口シーンと、それに合うサーフェス定義 |
@@ -49,16 +49,25 @@ Unity 6000.0 以降。`Packages/manifest.json` に npmjs のスコープ付き�
 - 機能を足すときは、Unity に依存しない処理を `Runtime/Core/`(`OscDesk.Receiver`)に、MonoBehaviour を `Runtime/`(`OscDesk.Receiver.Runtime`)に、エディタだけの補助を `Editor/` に置きます。`Core` は `UnityEngine` を参照できないので、Unity の型が要る処理を `Core` に入れないでください
 - 自前の asmdef から参照するときは `OscDesk.Receiver.Runtime`(`OscReceiver` を使う場合)と `OscDesk.Receiver`(`OscRecord` などの中核の型を使う場合)を `references` に足します。asmdef の無いスクリプト(`Assembly-CSharp`)からはそのまま参照できます
 
-## 名前の一覧を返す(`optionsFrom` / `keysFrom`)
+## OSCQuery で公開する(D-164)
 
-定義の `optionsFrom` / `keysFrom` に Unity の名前の一覧を返すときは、`OscNameListPublisher` を追加します。`Receiver` に `OscReceiver` を、`Address` に定義の一覧のアドレス(版 2 の定義では `bindings.osc.lists` の `address`。版 1 の定義では `optionsFrom.address` または `keysFrom.address`)を設定し、`OscReceiver` の `request` の Trigger の行の On Trigger に `OscNameListPublisher.SendNow` を登録します。供給元はコードから渡します。
+`OscReceiver` は待ち受けを始めると、Registry に載った行と操作(対応表の行と `OscTarget` の操作)を OSCQuery の名前空間として公開します。OscDesk のブリッジは mDNS でこの PC を見つけ、名前空間からパッドに置ける部品の候補を作ります。
 
-```csharp
-publisher.AddSource(() => Microphone.devices);
-```
+- `Serve Osc Query`(既定オン)・`Osc Query Port`(0 = 空きポートを自動で選ぶ)・`Advertise Mdns`(既定オン)・`Osc Query Name`(空なら製品名。後ろに受信ポートを付ける)
+- `http://<この PC>:<ポート>/` で名前空間の JSON、`/?HOST_INFO` で HOST_INFO を返します。属性だけのクエリ(`/mix/level?TYPE` など)は、持たない属性・対応していない属性に 204 を返します。`VALUE` は持ちません
+- `HOST_INFO` は `WS_PORT` と `EXTENSIONS` を明示し、`OSC_IP` は書きません(ブリッジは HTTP を取ったアドレスへ送る)。起動ごとの ID(32 桁の 16 進)を独自の拡張 `X_OSCDESK_BOOT_ID` に、同じ値を `/sys/pong` の第 2 引数(`,is seq bootId`)に載せます。Play の開始ごとに新しくなります
+- 型は Int → `i`、Float → `f`、String → `s`、Bool → `T`、Trigger → TYPE なし、組み合わせの型 → フィールドの型タグを並べたもの。`ACCESS` は値を持つ操作が 3、きっかけ(Trigger と `AsCommand`)が 2 です。選択肢(`WithOptions`)は `RANGE` の `VALS`、範囲(`WithRange`)は `MIN` / `MAX`、`WithLabel` は `DESCRIPTION` になります。型の無い Record・Strings は OSCQuery で表せないので載せません(警告が 1 回出ます)
+- パスは ASCII に限ります(空白と `# * , ? [ ] { }` を除く)。実行時に増減する行は、行ごとのアドレスを ASCII の ID で作り(例 `/member/<ID>/active`)、人が読む名前は `OscTarget.DisplayName`(インスペクタの `Display Name`)に入れると、`/member/<ID>` の段の `DESCRIPTION` に載ります。行の増減は WebSocket の `PATH_ADDED` / `PATH_REMOVED`、属性の変化(選択肢の入れ替えなど)は `PATH_CHANGED` で知らせます
+- Windows のネットワークが「パブリック」だと、ファイアウォールで mDNS(UDP 5353)と HTTP が塞がれることがあります。mDNS を始められないときは警告を出し、HTTP は動かし続けます
+- 認証はありません。信頼できる LAN の中だけで使ってください
 
-要求には同じ一覧でも必ず送り、`Refresh Interval Seconds`(既定 3 秒)ごとに作り直して、前回送れた一覧と順序込みで違うときだけ送ります。空白のみ・制御文字・`Reserved Names`(定義の静的な選択肢の「(none)」など)・重複は除き、理由を警告としてログに出します。整えるだけなら `OscNameList.Normalize` を直接呼べます。規則の詳細は `docs/UNITY_PROTOCOL.md` §5 と DESIGN.md D-098 を参照してください。
+## 同期を受けたときの処理(D-165・D-166)
 
+OscDesk が保持値を送り直すとき(自動の再送・手動の同期)、受信側で生成物を作り直すなどの処理が要ることがあります。受け口は作り直しを行わず、同期の始まりと終わりを知らせる口だけを持ちます。
+
+- `OscReceiver.onSyncBegan` / `onSyncEnded`(UnityEvent)と、C# の `SyncBegan` / `SyncEnded`(`OscSyncSession`。`Reason`・`Messages`(始まりから終わりまでに受けた値の数)・`Completed`)
+- 合図のアドレスは **仮置き** の `/sys/sync/begin`(引数は省略可。第 1 引数が文字列なら `Reason`)と `/sys/sync/end` です。oscdesk 側の HID-487 で確定します
+- 終わりの合図が `SyncTimeoutSeconds`(既定 10 秒。最後の受信から数える)のうちに来なければ、未完了(`Completed` が false)として閉じます
 ## トリガ待ちのアプリでの再送
 
 値を受けた時点では保持だけして、適用をトリガ(Update ボタンなど)まで待つアプリでは、OscDesk のブリッジが Unity の再起動・再接続で送り直す保持値にトリガが伴いません。`OscResendWindow` は、再送が起きる契機(Play 開始と、受信の途絶からの再開)にだけ窓を開き、窓の中で届いた値をトリガを待たずに適用してよいかを知らせます。`OscReceiver.HasReceived` / `LastReceivedRealtime` を毎フレーム渡す使い方・既定値の根拠・既知の限界は、`docs/UNITY_PROTOCOL.md` §5「トリガ待ちのアプリでの再送の扱い」を参照してください。
@@ -119,7 +128,7 @@ public sealed class SparkEffect : OscTarget
 
 - 実行中に同じアドレスが重なったら、後から有効になった方は受け付けられず、Console に警告が出ます。シーンに置いたものどうしの重なりは、シーンの保存時と Play の開始時にエディタが後に並ぶ方の `Target Name` へ `_2` などを足して付け直します(Console とインスペクタに出て、Undo で戻せます)
 - `OscSpawner` は `/パッケージ名/対象名/spawn ,s "名前"` で `Prefab` を生成し、生成したものの `OscTarget` をその名前で登録します。`destroy ,s "名前"` で消します。使われている名前・使えない名前では生成しません(失敗の理由 `name in use` / `invalid name`)
-- `OscReceiver` は Registry に載った行と操作を設計図として OscDesk へ送ります(`Send Catalog`。PC 名は `Catalog Name`、空なら端末名)。`WithLabel` / `WithRange` / `WithWidget` などの宣言が、OscDesk の既定の画面の見出し・範囲・部品になります(D-114)
+- `OscReceiver` は Registry に載った行と操作を OSCQuery の名前空間で公開します(上の「OSCQuery で公開する」)。`WithLabel` / `WithRange` / `WithOptions` の宣言が `DESCRIPTION` / `RANGE` になります
 - 新しい型(色・ベクトルなど)は `OscValueType` で「基本型・Record・配列の組み合わせ + 制約 + 表示ヒント」として定義し、`operations.Composite` で受けます(D-121)。値は 1 つのアドレスへフィールドを宣言順に並べた OSC の引数で届き(独自の型タグは使いません)、OscDesk は表示ヒントを知っていれば専用の部品(`color` なら色の選択)、知らなければフィールドごとの部品を出します。今受けられるのは基本型だけの Record です(入れ子・配列は HID-397)
 
 ```csharp

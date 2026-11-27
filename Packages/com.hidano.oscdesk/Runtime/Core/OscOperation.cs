@@ -20,7 +20,7 @@ namespace OscDesk.Receiver
     /// <summary>
     /// 受け手(OscTarget など)が受け付ける操作 1 つ。アドレスは /パッケージ/対象/操作 の「操作」の部分だけを持ち、
     /// 対象名は受け手が決める(同じ宣言を、生成で名前が変わる受け手でも使い回すため)。
-    /// 制約と表示ヒントは定義(D-103)と同じ軸で、今は宣言として持つだけ(設計図で送るのは HID-379)。
+    /// 制約と表示ヒントは定義(D-103)と同じ軸で、OSCQuery の名前空間(RANGE・DESCRIPTION)に載せる(HID-490)。
     /// </summary>
     public sealed class OscOperation
     {
@@ -62,7 +62,7 @@ namespace OscDesk.Receiver
         }
 
         /// <summary>
-        /// 引数を変換せずに受ける操作(D-108)。kind は設計図(D-114)に載せる型の目安で、振り分けには使わない
+        /// 引数を変換せずに受ける操作(D-108)。kind は OSCQuery の名前空間に載せる型の目安で、振り分けには使わない
         /// (OscReceiver の対応表では、そのアドレスの最初の行の型)。
         /// </summary>
         public OscOperation(string name, OscRawOperationHandler rawHandler, OscBindingKind kind = OscBindingKind.Trigger)
@@ -72,12 +72,12 @@ namespace OscDesk.Receiver
             RawHandler = rawHandler ?? throw new ArgumentNullException(nameof(rawHandler));
         }
 
-        /// <summary>設計図の表示名(定義の label)。無ければ空。</summary>
+        /// <summary>表示名(OSCQuery の DESCRIPTION)。無ければ空。</summary>
         public string Label { get; private set; } = string.Empty;
 
         /// <summary>
-        /// 値を持たない「きっかけ」の操作か(設計図の kind が trigger になる)。引数を取る命令(生成担当の spawn ,s "名前" など)は
-        /// 型を残したまま trigger として載せ、コントローラーが保持値として再送しないようにする(D-114)。Trigger 型の操作は常に true。
+        /// 値を持たない「きっかけ」の操作か(OSCQuery の ACCESS が 2(送るだけ)になる)。引数を取る命令(生成担当の spawn ,s "名前" など)は
+        /// 型(TYPE)を残したまま送るだけのノードとして載せ、コントローラーが保持値として再送しないようにする(D-165)。Trigger 型の操作は常に true。
         /// </summary>
         public bool IsCommand => isCommand || Kind == OscBindingKind.Trigger;
 
@@ -89,7 +89,7 @@ namespace OscDesk.Receiver
             return this;
         }
 
-        /// <summary>引数を取る命令として設計図に載せる(kind = trigger、type は引数の型)。</summary>
+        /// <summary>引数を取る命令として名前空間に載せる(ACCESS 2、TYPE は引数の型)。</summary>
         public OscOperation AsCommand()
         {
             isCommand = true;
@@ -129,7 +129,7 @@ namespace OscDesk.Receiver
         }
 
         /// <summary>
-        /// 組み合わせの型(HID-380・D-121)。あれば設計図の項目は type composite で、型のスキーマをキー schema に載せる
+        /// 組み合わせの型(HID-380・D-121)。あれば OSCQuery の名前空間ではフィールドの型タグを並べた TYPE と、フィールドごとの RANGE で載せる
         /// (min / max / step / widget / options は型の側に書く)。
         /// </summary>
         public OscValueType ValueType { get; private set; }
@@ -210,7 +210,7 @@ namespace OscDesk.Receiver
             if (!type.IsFlatRecord) throw new ArgumentException("only a record of Int, Float, String and Bool fields can be received for now (HID-397)", nameof(type));
             var fieldIds = new string[type.Fields.Count];
             for (var n = 0; n < fieldIds.Length; n++) fieldIds[n] = type.Fields[n].Id;
-            // 変換は型の側で行う(行の型の変換は 1 つの値か Record の行しか知らないため)。kind は設計図の目安で、composite が優先する
+            // 変換は型の側で行う(行の型の変換は 1 つの値か Record の行しか知らないため)。kind は目安で、組み合わせの型が優先する
             var operation = new OscOperation(name, (args, failures) =>
             {
                 if (!type.TryRead(args, out var value, out _))

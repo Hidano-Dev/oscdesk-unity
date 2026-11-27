@@ -12,6 +12,8 @@ namespace OscDesk.Receiver
         internal static void ResetOnPlay()
         {
             OscRegistry.ResetShared();
+            // Play の開始は受け口の起動とみなす(ブリッジは起動 ID の変化で再送する。D-164)。ドメインのリロードを切っていても新しくする
+            OscBootId.Renew();
         }
     }
 }

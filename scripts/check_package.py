@@ -39,7 +39,7 @@ UPSTREAM_REPOSITORY = 'Hidano-Dev/oscdesk'
 # 写し(パッケージの中のパス) → 原本(oscdesk の中のパス)
 SAMPLE_COPIES = {
     'Tests/Editor/osc-binary-samples.json': 'protocol/osc-binary-samples.json',
-    'Tests/Editor/catalog-samples.json': 'protocol/catalog-samples.json',
+    # protocol/catalog-samples.json の写しは、設計図(/sys/catalog/*)の送信の撤去(HID-490・D-164)で外した
 }
 
 

@@ -32,7 +32,7 @@ namespace OscDesk.Receiver
         /// <summary>
         /// 1 データグラムに入れてよいメッセージ数の上限。認証の無い LAN の相手が 64 KiB の bundle に request を数千個詰めて、
         /// 登録した関数をその回数だけ同期で呼ばせるのを止める(HID-366)。超えた bundle は半端に処理せず丸ごと捨てて parseErrors に数える。
-        /// 受け口が普通に送る bundle(設計図やまとめ送り)は 1 データグラムあたり数十〜数百件なので、それより十分大きい値にしてある。
+        /// 普通に届く bundle(まとめ送り)は 1 データグラムあたり数十〜数百件なので、それより十分大きい値にしてある。
         /// </summary>
         public const int MaxMessagesPerDatagram = 1024;
 
@@ -133,7 +133,7 @@ namespace OscDesk.Receiver
         public const int BundleElementOverheadBytes = 4;
 
         /// <summary>
-        /// エンコード済みのメッセージを即時のタイムタグの bundle 1 個にする(設計図の送信で、1 フレームの変化を 1 データグラムにまとめるため。D-114)。
+        /// エンコード済みのメッセージを即時のタイムタグの bundle 1 個にする(複数のメッセージを 1 データグラムにまとめるため)。
         /// </summary>
         public static byte[] EncodeBundle(IReadOnlyList<byte[]> messages)
         {

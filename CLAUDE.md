@@ -4,13 +4,13 @@ OscDesk(Unity を LAN 内のブラウザから操作する OSC コントロー�
 
 ## 対象範囲と境界
 
-- **開発対象**: 受け口のパッケージ(受信アドレス → UnityEvent、pong とエコー、定義 JSON からの行の取り込み、設計図(Catalog)の送信など)と、その検証用プロジェクト
+- **開発対象**: 受け口のパッケージ(受信アドレス → UnityEvent、pong とエコー、定義 JSON からの行の取り込み、OSCQuery の名前空間の公開と mDNS の告知、同期の合図の口など)と、その検証用プロジェクト
 - **開発対象外**: Unity アプリ本体と案件固有の制御(フォーク側で実装する)、ブリッジと UI(oscdesk)
 - **セキュリティ前提**: 認証を提供しない。信頼できる LAN 内での利用が前提であり、インターネットや信頼できないネットワークへ公開してはならない
 
 ## 絶対規律
 
-- **契約の正は oscdesk**。Unity との契約は oscdesk の `docs/UNITY_PROTOCOL.md`、言語間の見本は oscdesk の `protocol/osc-binary-samples.json`・`protocol/catalog-samples.json`。契約を変える変更は oscdesk 側で文書と見本を先に直す。`Tests/Editor/` の見本の写しを手で書き換えない(`scripts/check_package.py --sync` で写す)
+- **契約の正は oscdesk**。Unity との契約は oscdesk の `docs/UNITY_PROTOCOL.md`、言語間の見本は oscdesk の `protocol/osc-binary-samples.json`。契約を変える変更は oscdesk 側で文書と見本を先に直す。`Tests/Editor/` の見本の写しを手で書き換えない(`scripts/check_package.py --sync` で写す)
 - **特定 Unity OSC ライブラリに依存しない**。OSC 1.0 標準の機能だけで契約を成り立たせる(外部パッケージへの依存を足さない)
 - 設計判断の記録は oscdesk の `DESIGN.md`(`D-0xx`)と `docs/DECISIONS.md` に置く(このリポジトリに判断の記録の文書を作らない)
 - プロジェクトの Markdown 文書は日本語・UTF-8 で書く

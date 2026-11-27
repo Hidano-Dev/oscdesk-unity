@@ -82,7 +82,7 @@ namespace OscDesk.Receiver
 
         protected override void DeclareOperations(OscOperationList operations)
         {
-            // 設計図には kind trigger・type s で載せる(保持値として再送させない。HID-385 は末尾の /spawn・/destroy と s 1 個で認識する。D-114)
+            // OSCQuery の名前空間には ACCESS 2(送るだけ)・TYPE s で載せる(保持値として再送させない。D-165)
             operations.Add(SpawnOperation, OscBindingKind.String, invocation => TrySpawn(invocation.StringValue, out _)).AsCommand();
             operations.Add(DestroyOperation, OscBindingKind.String, invocation => TryDestroy(invocation.StringValue)).AsCommand();
         }
