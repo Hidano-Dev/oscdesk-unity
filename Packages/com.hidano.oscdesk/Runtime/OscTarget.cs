@@ -20,12 +20,17 @@ namespace OscDesk.Receiver
         [Tooltip("アドレスの 2 段目。空なら GameObject 名から (Clone) を除いたもの。同じアドレスが実行中に重なったら、後から有効になった方は受け付けられない。")]
         [SerializeField] private string targetName = string.Empty;
 
+        [Tooltip("対象の表示名(日本語可)。OSCQuery の名前空間で /パッケージ名/対象名 の段の DESCRIPTION に載る。"
+            + "対象名(パス)は ASCII の ID にして、人が読む名前はここに書く。空なら載せない。")]
+        [SerializeField] private string displayName = string.Empty;
+
         private readonly List<OscRegistryEntry> registered = new List<OscRegistryEntry>();
         private readonly List<OscRegistryEntry> rejectedEntries = new List<OscRegistryEntry>();
         private int rejectedCount;
         private bool isRegistered;
         private string registeredPackage;
         private string registeredTarget;
+        private string registeredDisplayName;
         private bool registeredFromObjectName;
 
         /// <summary>派生クラスの既定のパッケージ名(インスペクタの欄が空のとき)。</summary>
@@ -72,6 +77,24 @@ namespace OscDesk.Receiver
             }
         }
 
+        /// <summary>
+        /// 対象の表示名(OSCQuery の DESCRIPTION)。有効な間に変えると登録し直す(名前空間の木が作り直され、PATH_CHANGED で知らせる)。
+        /// 行を実行時に増やす使い方(/member/&lt;ID&gt;/active など)では、ID を TargetName に、人が読む名前をここに入れる。
+        /// </summary>
+        public string DisplayName
+        {
+            get { return displayName; }
+            set
+            {
+                value = value ?? string.Empty;
+                if (displayName != value)
+                {
+                    displayName = value;
+                    ReregisterIfActive();
+                }
+            }
+        }
+
         /// <summary>インスペクタの欄の値そのもの(空なら GameObject 名を使う)。</summary>
         public string TargetNameField => targetName;
 
@@ -94,7 +117,7 @@ namespace OscDesk.Receiver
             var entries = new List<OscRegistryEntry>(list.Operations.Count);
             foreach (var operation in list.Operations)
             {
-                entries.Add(new OscRegistryEntry(OscAddressNames.Build(package, target, operation.Name), operation, this, package, target));
+                entries.Add(new OscRegistryEntry(OscAddressNames.Build(package, target, operation.Name), operation, this, package, target, displayName));
             }
 
             return entries;
@@ -118,7 +141,8 @@ namespace OscDesk.Receiver
         {
             if (isRegistered && Application.isPlaying
                 && (!string.Equals(registeredPackage, PackageName, StringComparison.Ordinal)
-                    || !string.Equals(registeredTarget, TargetName, StringComparison.Ordinal)))
+                    || !string.Equals(registeredTarget, TargetName, StringComparison.Ordinal)
+                    || !string.Equals(registeredDisplayName, displayName, StringComparison.Ordinal)))
             {
                 ReregisterIfActive();
             }
@@ -166,6 +190,7 @@ namespace OscDesk.Receiver
             registeredFromObjectName = string.IsNullOrEmpty(targetName);
             registeredPackage = PackageName;
             registeredTarget = TargetName;
+            registeredDisplayName = displayName;
             isRegistered = true;
             rejectedCount = 0;
 
@@ -208,7 +233,7 @@ namespace OscDesk.Receiver
                         break;
                     case OscRegistrationResult.Duplicate:
                         rejectedCount += 1;
-                        // 受け付けられなかった登録も覚えておき、無効化で Registry に返す(設計図の duplicate の印と 16 件の枠を空ける。PR #107 の指摘)
+                        // 受け付けられなかった登録も覚えておき、無効化で Registry に返す(Registry が覚えた重複の 16 件の枠を空ける。PR #107 の指摘)
                         rejectedEntries.Add(entry);
                         registry.TryGet(entry.Address, out var existing);
                         var owner = existing != null ? existing.Owner as UnityEngine.Object : null;

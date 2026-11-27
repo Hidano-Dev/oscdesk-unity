@@ -1,7 +1,7 @@
 // OscValueType.cs — 拡張パッケージが定義する型(組み合わせの型。HID-380・DESIGN.md D-121)。UnityEngine に依存しない。
 // 送受信の型は OSC 1.0 の標準の型だけで、独自の型タグは足さない。新しい型は「基本型(Int・Float・String・Bool)・Record・
-// 配列の組み合わせ + 制約 + 表示ヒントの名前」で表し、その構造(スキーマ)を設計図(/sys/catalog/add の type composite、
-// キー schema)でコントローラーへ送る。コントローラーは知っている表示ヒントなら専用の部品、知らなければスキーマから汎用の部品を組む。
+// 配列の組み合わせ + 制約 + 表示ヒントの名前」で表し、その構造は OSCQuery の名前空間(フィールドの型タグを並べた TYPE と RANGE)で公開し、スキーマの JSON(
+// ToSchemaJson)も作れる。コントローラーは知っている表示ヒントなら専用の部品、知らなければスキーマから汎用の部品を組む。
 // 型の仕組みは入れ子(Record の中の Record・配列)を表せるが、OSC の引数で受けられるのは基本型だけの Record(フラット)まで。
 // 入れ子・可変長は将来 CBOR の Blob で送る方針(HID-397)。
 using System;
@@ -88,7 +88,7 @@ namespace OscDesk.Receiver
             return type;
         }
 
-        /// <summary>名前付きの配列(可変長)。スキーマとしては設計図に載せられるが、値を OSC で受けるのは HID-397 から。</summary>
+        /// <summary>名前付きの配列(可変長)。スキーマは作れるが(OSCQuery の名前空間には載らない)、値を OSC で受けるのは HID-397 から。</summary>
         public static OscValueType Array(string name, OscValueType items, int? maxItems = null)
         {
             if (items == null) throw new ArgumentNullException(nameof(items));
@@ -171,7 +171,7 @@ namespace OscDesk.Receiver
         }
 
         /// <summary>
-        /// 設計図のキー schema に載せる JSON(packages/shared/src/value-type.ts の CompositeType と同じ形)。
+        /// 型のスキーマの JSON(packages/shared/src/value-type.ts の CompositeType と同じ形)。
         /// 最上位は name を持つ Record か配列。
         /// </summary>
         public string ToSchemaJson()

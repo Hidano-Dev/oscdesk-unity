@@ -19,13 +19,21 @@ namespace OscDesk.Receiver
         /// <summary>振り分けの型の変換に使う行(OscDispatcher と同じ変換を通すため)。</summary>
         public OscBindingRow Row { get; }
 
-        public OscRegistryEntry(string address, OscOperation operation, object owner, string packageName = null, string targetName = null)
+        /// <summary>
+        /// 対象(アドレスの 1 つ上の段。/パッケージ/対象)の表示名。OSCQuery の名前空間で、その段の DESCRIPTION に載せる
+        /// (行はパスを ASCII の ID にし、人が読む名前はここに置く。HID-490)。無ければ空。
+        /// </summary>
+        public string TargetDescription { get; }
+
+        public OscRegistryEntry(string address, OscOperation operation, object owner, string packageName = null, string targetName = null,
+            string targetDescription = null)
         {
             Address = address ?? string.Empty;
             Operation = operation ?? throw new ArgumentNullException(nameof(operation));
             Owner = owner;
             PackageName = packageName ?? string.Empty;
             TargetName = targetName ?? string.Empty;
+            TargetDescription = targetDescription ?? string.Empty;
             var isRecord = operation.Kind == OscBindingKind.Record;
             Row = new OscBindingRow(Address, operation.Kind, 1, isRecord ? operation.RecordFields : null, isRecord && operation.RecordRowIds);
         }
@@ -79,7 +87,7 @@ namespace OscDesk.Receiver
         // 登録の順(パターンで複数に届けるときの順。辞書の列挙順は決まっていないため)
         private readonly List<OscRegistryEntry> ordered = new List<OscRegistryEntry>();
 
-        // 受け付けなかった重複(アドレス → 受け付けなかった登録)。設計図に重複として載せる(HID-379)。受け付けなかった側が
+        // 受け付けなかった重複(アドレス → 受け付けなかった登録)。受け口が警告で重複の持ち主を示すのに使う。受け付けなかった側が
         // 解除(OscTarget の無効化)を呼んだら外す。1 つのアドレスに覚える数は MaxRejectedPerAddress まで
         private readonly Dictionary<string, List<OscRegistryEntry>> rejected = new Dictionary<string, List<OscRegistryEntry>>(StringComparer.Ordinal);
         private static readonly OscRegistryEntry[] NoEntries = new OscRegistryEntry[0];
@@ -113,7 +121,7 @@ namespace OscDesk.Receiver
         /// <summary>解除された(後)。</summary>
         public event Action<OscRegistryEntry> Unregistered;
 
-        /// <summary>同じアドレスが既にあるので受け付けなかった(受け付けなかった方, 既にある方)。設計図(HID-379)で重複として載せるのに使う。</summary>
+        /// <summary>同じアドレスが既にあるので受け付けなかった(受け付けなかった方, 既にある方)。重複を知らせるのに使う。</summary>
         public event Action<OscRegistryEntry, OscRegistryEntry> Rejected;
 
         /// <summary>受け付けなかった重複が解除された(覚えていた重複から外した後)。</summary>

@@ -305,34 +305,6 @@ namespace OscDesk.Receiver.Tests
             Assert.That(warnings[0].Address, Is.EqualTo("/mb/segments/get"));
         }
 
-        [Test]
-        public void StringList_accepts_a_normal_list_and_rejects_bad_address_or_null()
-        {
-            Assert.That(OscStringList.TryValidate("/mb/segments", new[] { "(none)", "Intro", "日本語" }, out _), Is.True);
-            Assert.That(OscStringList.TryValidate("/mb/segments", new string[0], out _), Is.True);
-            Assert.That(OscStringList.TryValidate("/sys/x", new[] { "a" }, out var reason), Is.False);
-            Assert.That(reason, Is.Not.Empty);
-            Assert.That(OscStringList.TryValidate("/mb/segments", null, out _), Is.False);
-        }
-
-        [Test]
-        public void StringList_size_follows_osc_padding_and_enforces_the_datagram_limit()
-        {
-            // "/a" → 4、",s" → 4、"b" → 4
-            Assert.That(OscStringList.EstimateSize("/a", new[] { "b" }), Is.EqualTo(12));
-            // UTF-8 は文字数でなくバイト数で数える("あ" = 3 バイト → 4)
-            Assert.That(OscStringList.EstimateSize("/a", new[] { "あ" }), Is.EqualTo(12));
-
-            var many = new List<string>();
-            for (var i = 0; i < 20000; i++)
-            {
-                many.Add("name" + i);
-            }
-
-            Assert.That(OscStringList.TryValidate("/mb/segments", many, out var reason), Is.False);
-            StringAssert.Contains("大きすぎ", reason);
-        }
-
         private static readonly string[] MemberFields = { "active", "slot", "ip", "segment" };
 
         [Test]

@@ -8,8 +8,8 @@ oscdesk リポジトリの `OscSurface/` から、履歴ごと切り出しまし
 
 ## oscdesk との分担
 
-- **Unity との契約**(`/sys/*`・エコー・ping/pong・型・Catalog)の正典は oscdesk の [`docs/UNITY_PROTOCOL.md`](https://github.com/Hidano-Dev/oscdesk/blob/main/docs/UNITY_PROTOCOL.md) です。契約を変えるときは oscdesk 側の PR で文書を直してから、このリポジトリで受け口を直します
-- **言語間の見本**(`protocol/osc-binary-samples.json`・`protocol/catalog-samples.json`)の正も oscdesk です。このリポジトリは `Packages/com.hidano.oscdesk/Tests/Editor/` に写しを持ち、EditMode テストは写しを読みます(利用側のプロジェクトには oscdesk が無いため)
+- **Unity との契約**(`/sys/*`・エコー・ping/pong・型・OSCQuery)の正典は oscdesk の [`docs/UNITY_PROTOCOL.md`](https://github.com/Hidano-Dev/oscdesk/blob/main/docs/UNITY_PROTOCOL.md) です。契約を変えるときは oscdesk 側の PR で文書を直してから、このリポジトリで受け口を直します
+- **言語間の見本**(`protocol/osc-binary-samples.json`)の正も oscdesk です。このリポジトリは `Packages/com.hidano.oscdesk/Tests/Editor/` に写しを持ち、EditMode テストは写しを読みます(利用側のプロジェクトには oscdesk が無いため)
 - ブリッジ・UI・mock-unity・手動検証の手順(oscdesk の `docs/VERIFICATION.md`)は oscdesk にあります
 
 ## 構成
@@ -110,7 +110,7 @@ py -3 scripts/check_package.py --sync                          # oscdesk の mai
 py -3 scripts/check_package.py --sync --upstream <oscdesk のクローン>   # 手元のクローン(未マージのブランチなど)から写す
 ```
 
-見本が変わるのは契約や Catalog の規則が変わったときなので、写しを更新した後は EditMode テストも実行します。
+見本が変わるのは契約が変わったときなので、写しを更新した後は EditMode テストも実行します。
 
 ## Unity CI
 

@@ -292,12 +292,13 @@ namespace OscDesk.Receiver.Tests
         [Test]
         public void Link_answers_ping_and_stats_and_swallows_other_sys()
         {
-            var link = new OscLink();
+            var link = new OscLink(() => "boot-1");
             var now = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc);
 
+            // pong は seq と起動ごとの ID(D-164)
             Assert.That(link.TryHandleSystem("/sys/ping", new object[] { 5 }, 0, now, out var address, out var args), Is.True);
             Assert.That(address, Is.EqualTo("/sys/pong"));
-            Assert.That(args, Is.EqualTo(new object[] { 5 }));
+            Assert.That(args, Is.EqualTo(new object[] { 5, "boot-1" }));
 
             Assert.That(link.TryHandleSystem("/sys/ping", new object[] { "x" }, 0, now, out address, out _), Is.True);
             Assert.That(address, Is.Null);
@@ -311,6 +312,33 @@ namespace OscDesk.Receiver.Tests
             Assert.That(link.TryHandleSystem("/sys/stats/request", new object[0], 2, now, out address, out args), Is.True);
             Assert.That(address, Is.EqualTo("/sys/stats"));
             Assert.That(args[0], Is.EqualTo("{\"received\":5,\"parseErrors\":3,\"lastReceivedAt\":\"2026-11-01T00:00:00.000Z\"}"));
+        }
+
+        [Test]
+        public void Link_pong_carries_the_shared_boot_id_by_default_and_renew_changes_it()
+        {
+            var link = new OscLink();
+            var now = DateTime.UtcNow;
+            var before = OscBootId.Current;
+            Assert.That(before, Does.Match("^[0-9a-f]{32}$"));
+            link.TryHandleSystem("/sys/ping", new object[] { 1 }, 0, now, out _, out var args);
+            Assert.That(args, Is.EqualTo(new object[] { 1, before }));
+            Assert.That(OscBootId.Current, Is.EqualTo(before), "同じ起動の間は変わらない");
+
+            var renewed = OscBootId.Renew();
+            Assert.That(renewed, Is.Not.EqualTo(before));
+            link.TryHandleSystem("/sys/ping", new object[] { 2 }, 0, now, out _, out args);
+            Assert.That(args, Is.EqualTo(new object[] { 2, renewed }));
+        }
+
+        [Test]
+        public void Link_swallows_sync_signals_as_system_messages()
+        {
+            var link = new OscLink();
+            Assert.That(link.TryHandleSystem(OscSyncTracker.BeginAddress, new object[] { "auto" }, 0, DateTime.UtcNow, out var address, out _), Is.True);
+            Assert.That(address, Is.Null);
+            Assert.That(link.TryHandleSystem(OscSyncTracker.EndAddress, new object[0], 0, DateTime.UtcNow, out address, out _), Is.True);
+            Assert.That(address, Is.Null);
         }
 
         [Test]

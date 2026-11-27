@@ -102,34 +102,20 @@ namespace OscDesk.Receiver.Tests
         }
 
         [Test]
-        public void Catalog_item_carries_the_schema_as_composite()
+        public void Composite_is_described_in_oscquery_with_one_type_tag_and_range_per_field()
         {
             var operation = new OscOperationList().Composite("tint", Color(), _ => { }).WithLabel("Tint");
-            var item = new OscCatalog(new OscRegistry()).CreateItem(new OscRegistryEntry("/fx/light/tint", operation, null));
-            Assert.That(item, Is.Not.Null);
-            Assert.That(item.Kind, Is.EqualTo(OscCatalog.KindState));
-            Assert.That(item.Type, Is.EqualTo(OscCatalog.TypeComposite));
-            Assert.That(item.Props.Select(prop => prop.Key), Is.EqualTo(new[] { "label", OscCatalog.SchemaKey }));
-            Assert.That(item.Props[1].Value, Is.EqualTo(ColorSchema));
+            var tree = OscQueryTree.Build(new[] { new OscRegistryEntry("/fx/light/tint", operation, null) });
+            Assert.That(tree.TryFind("/fx/light/tint", out var node), Is.True);
+            Assert.That(node.Type, Is.EqualTo("ffisT"));
+            Assert.That(node.Access, Is.EqualTo(3));
+            Assert.That(OscQueryTree.AttributeJson(node, "RANGE"),
+                Is.EqualTo("{\"RANGE\":[{\"MIN\":0,\"MAX\":1},{\"MIN\":0,\"MAX\":1},{\"MIN\":0,\"MAX\":10},{\"VALS\":[\"a\",\"\\\"b\\\"\"]},{}]}"));
+            Assert.That(node.Description, Is.EqualTo("Tint"));
 
             var command = new OscOperationList().Composite("kick", Color(), _ => { }).AsCommand();
-            Assert.That(new OscCatalog(new OscRegistry()).CreateItem(new OscRegistryEntry("/fx/light/kick", command, null)).Kind, Is.EqualTo(OscCatalog.KindTrigger));
-        }
-
-        [Test]
-        public void Long_schemas_are_split_into_repeated_schema_props_that_join_back()
-        {
-            var fields = Enumerable.Range(0, 40)
-                .Select(n => OscValueField.Of("field" + n, OscValueType.Float().WithRange(0f, 1f), new string('色', 10)))
-                .ToArray();
-            var type = OscValueType.Record("wide", fields);
-            var item = new OscCatalog(new OscRegistry()).CreateItem(
-                new OscRegistryEntry("/fx/light/wide", new OscOperationList().Composite("wide", type, _ => { }), null));
-            Assert.That(item, Is.Not.Null);
-            var parts = item.Props.Where(prop => prop.Key == OscCatalog.SchemaKey).Select(prop => (string)prop.Value).ToList();
-            Assert.That(parts.Count, Is.GreaterThan(1));
-            Assert.That(parts.All(part => part.Length <= OscCatalog.MaxStringChars), Is.True);
-            Assert.That(string.Concat(parts), Is.EqualTo(type.ToSchemaJson()));
-        }
-    }
+            var commandTree = OscQueryTree.Build(new[] { new OscRegistryEntry("/fx/light/kick", command, null) });
+            Assert.That(commandTree.TryFind("/fx/light/kick", out var kick), Is.True);
+            Assert.That(kick.Access, Is.EqualTo(2));
+        }    }
 }

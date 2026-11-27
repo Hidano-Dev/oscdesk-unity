@@ -16,6 +16,14 @@ namespace OscDesk.Receiver
         public const string StatsRequestAddress = "/sys/stats/request";
         public const string StatsAddress = "/sys/stats";
 
+        private readonly Func<string> bootId;
+
+        /// <summary>bootId は pong の第 2 引数に載せる起動ごとの ID を返す(既定は <see cref="OscBootId.Current"/>)。</summary>
+        public OscLink(Func<string> bootId = null)
+        {
+            this.bootId = bootId ?? (() => OscBootId.Current);
+        }
+
         /// <summary>受けたメッセージの数(/sys/* を含む)。</summary>
         public int Received { get; private set; }
 
@@ -29,7 +37,8 @@ namespace OscDesk.Receiver
 
         /// <summary>
         /// 受信 1 件を数え、`/sys/*` なら true を返す(振り分けもエコーもしない)。応答があれば replyAddress / replyArgs に入れる
-        /// (`/sys/ping` に同じ seq の `/sys/pong`、`/sys/stats/request` に `/sys/stats`。それ以外の `/sys/*` は数えるだけ)。
+        /// (`/sys/ping` に `/sys/pong ,is seq bootId`(同じ seq と起動ごとの ID。D-164)、`/sys/stats/request` に `/sys/stats`。
+        /// それ以外の `/sys/*` は数えるだけ)。
         /// oversized は大きすぎて受けられなかったデータグラムの数(stats の parseErrors に足す)。
         /// </summary>
         public bool TryHandleSystem(string address, IReadOnlyList<object> values, int oversized, DateTime utcNow,
@@ -49,7 +58,7 @@ namespace OscDesk.Receiver
                     if (values != null && values.Count > 0 && values[0] is int seq)
                     {
                         replyAddress = PongAddress;
-                        replyArgs = new object[] { seq };
+                        replyArgs = new object[] { seq, bootId() ?? string.Empty };
                     }
 
                     return true;

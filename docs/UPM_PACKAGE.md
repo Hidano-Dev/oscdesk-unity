@@ -14,7 +14,7 @@
 | `Runtime/Core/` | asmdef `OscDesk.Receiver`(`UnityEngine` 非依存の中核) |
 | `Runtime/` | asmdef `OscDesk.Receiver.Runtime`(`OscReceiver`) |
 | `Editor/` | asmdef `OscDesk.Receiver.Editor`(インスペクタ拡張) |
-| `Tests/Editor/` | asmdef `OscDesk.Receiver.Tests` と、oscdesk の `protocol/osc-binary-samples.json`・`protocol/catalog-samples.json` の写し |
+| `Tests/Editor/` | asmdef `OscDesk.Receiver.Tests` と、oscdesk の `protocol/osc-binary-samples.json` の写し |
 | `Samples~/MinimalReceiver/` | 最小の受け口シーンと、それに合うサーフェス定義 |
 | `README.md` / `CHANGELOG.md` | 導入・構成・版と契約の対応 / 版ごとの変更 |
 

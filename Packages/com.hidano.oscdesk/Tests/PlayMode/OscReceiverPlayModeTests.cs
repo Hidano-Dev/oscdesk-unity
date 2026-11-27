@@ -61,6 +61,7 @@ namespace OscDesk.Receiver.Tests
             receiver.ListenPort = listenPort;
             receiver.ReplyHost = "127.0.0.1";
             receiver.ReplyPort = ((IPEndPoint)bridge.Client.LocalEndPoint).Port;
+            receiver.AdvertiseMdns = false; // テストで LAN へ告知しない(HTTP は loopback で確かめる)
             configure?.Invoke(receiver);
             gameObject.SetActive(true);
             Assert.That(receiver.IsListening, Is.True);
@@ -126,7 +127,7 @@ namespace OscDesk.Receiver.Tests
             var replies = new List<OscMessage>();
             Send("/sys/ping", 42);
             yield return Collect(replies, "/sys/pong");
-            Assert.That(Find(replies, "/sys/pong").Values, Is.EqualTo(new object[] { 42 }));
+            Assert.That(Find(replies, "/sys/pong").Values, Is.EqualTo(new object[] { 42, OscBootId.Current }));
 
             Send("/mix/level", 0.5f);
             yield return Collect(replies, "/mix/level");
@@ -253,6 +254,7 @@ namespace OscDesk.Receiver.Tests
             receiverB.ListenPort = portB;
             receiverB.ReplyHost = "127.0.0.1";
             receiverB.ReplyPort = ((IPEndPoint)bridge.Client.LocalEndPoint).Port;
+            receiverB.AdvertiseMdns = false;
             var level = Row("/mix/level", OscBindingKind.Float);
             level.onFloat.AddListener(_ => { });
             receiverB.bindings.Add(level);
@@ -294,66 +296,73 @@ namespace OscDesk.Receiver.Tests
         }
 
         [UnityTest]
-        public IEnumerator Catalog_is_sent_in_full_on_start_and_on_request()
+        public IEnumerator Oscquery_serves_host_info_and_namespace_over_http()
         {
-            MakeReceiver(receiver =>
+            var receiver = MakeReceiver(r =>
             {
-                receiver.CatalogName = "Stage PC";
                 var level = Row("/mix/level", OscBindingKind.Float);
                 level.onFloat.AddListener(_ => { });
-                receiver.bindings.Add(level);
+                r.bindings.Add(level);
             });
+            Assert.That(receiver.OscQueryPort, Is.GreaterThan(0));
+            yield return null; // LateUpdate で名前空間の木を作る
 
-            var replies = new List<OscMessage>();
-            yield return Collect(replies, "/sys/catalog/end");
-            Assert.That(Find(replies, "/sys/catalog/begin").Values, Is.EqualTo(new object[] { "Stage PC", 1 }));
-            Assert.That(Find(replies, "/sys/catalog/add").Values, Is.EqualTo(new object[] { "/mix/level", "state", "f" }));
-            var expected = new List<OscCatalogItem> { new OscCatalogItem("/mix/level", "state", "f") };
-            OscCatalogDigest.Compute(expected, out var count, out var crc);
-            Assert.That(Find(replies, "/sys/catalog/end").Values, Is.EqualTo(new object[] { count, crc }));
+            var hostInfo = HttpGet(receiver.OscQueryPort, "/?HOST_INFO");
+            StringAssert.Contains("\"OSC_PORT\":" + listenPort, hostInfo);
+            StringAssert.Contains("\"WS_PORT\":" + receiver.OscQueryPort, hostInfo);
+            StringAssert.Contains("\"X_OSCDESK_BOOT_ID\":\"" + receiver.BootId + "\"", hostInfo);
+            Assert.That(hostInfo, Does.Not.Contain("OSC_IP"));
 
-            // Sync の要求で全体を送り直す(1 秒に 1 回までなので、間隔が空いてから届く)
-            replies.Clear();
-            Send("/sys/catalog/request");
-            yield return Collect(replies, "/sys/catalog/end");
-            Assert.That(Find(replies, "/sys/catalog/begin"), Is.Not.Null);
-            Assert.That(Find(replies, "/sys/catalog/request"), Is.Null); // /sys/* にはエコーを返さない
+            var node = HttpGet(receiver.OscQueryPort, "/mix/level");
+            StringAssert.Contains("\"TYPE\":\"f\"", node);
+            StringAssert.Contains("\"ACCESS\":3", node);
         }
 
         [UnityTest]
-        public IEnumerator Catalog_follows_spawn_and_destroy_in_one_datagram_per_frame()
+        public IEnumerator Sync_signals_raise_began_and_ended_with_the_messages_in_between()
         {
-            MakeReceiver(null);
-            var templateObject = new GameObject("Spark");
-            created.Add(templateObject);
-            templateObject.SetActive(false); // ひな形は登録しない
-            templateObject.AddComponent<OscTestEffect>();
-            var spawnerObject = new GameObject("spawner");
-            created.Add(spawnerObject);
-            var spawner = spawnerObject.AddComponent<OscSpawner>();
-            spawner.PackageName = "fx";
-            spawner.Prefab = templateObject;
+            var began = 0;
+            OscSyncSession ended = null;
+            var receiver = MakeReceiver(r =>
+            {
+                var level = Row("/mix/level", OscBindingKind.Float);
+                level.onFloat.AddListener(_ => { });
+                r.bindings.Add(level);
+            });
+            receiver.onSyncBegan.AddListener(() => began += 1);
+            receiver.SyncEnded += session => ended = session;
 
             var replies = new List<OscMessage>();
-            yield return Collect(replies, "/sys/catalog/end"); // 起動時の全体
-            var spawn = replies.Find(m => m.Address == "/sys/catalog/add" && (string)m.Values[0] == "/fx/spawner/spawn");
-            Assert.That(spawn, Is.Not.Null, "生成担当の操作は全体に載る(Play の開始と同じフレームで登録されたもの)");
-            Assert.That(spawn.Values, Is.EqualTo(new object[] { "/fx/spawner/spawn", "trigger", "s" }));
-
-            replies.Clear();
-            Send("/fx/spawner/spawn", "spark1");
-            yield return Collect(replies, "/sys/catalog/digest");
-            var adds = replies.FindAll(m => m.Address == "/sys/catalog/add").ConvertAll(m => (string)m.Values[0]);
-            Assert.That(adds, Is.EqualTo(new[] { "/fx/spark1/level", "/fx/spark1/stop" }));
-            Assert.That(replies.FindAll(m => m.Address == "/sys/catalog/digest").Count, Is.EqualTo(1));
-
-            replies.Clear();
-            Send("/fx/spawner/destroy", "spark1");
-            yield return Collect(replies, "/sys/catalog/digest");
-            var removes = replies.FindAll(m => m.Address == "/sys/catalog/remove").ConvertAll(m => (string)m.Values[0]);
-            Assert.That(removes, Is.EqualTo(new[] { "/fx/spark1/level", "/fx/spark1/stop" }));
+            Send(OscSyncTracker.BeginAddress, "manual");
+            Send("/mix/level", 0.25f);
+            Send(OscSyncTracker.EndAddress);
+            Send("/done");
+            yield return Collect(replies, "/done");
+            Assert.That(began, Is.EqualTo(1));
+            Assert.That(ended, Is.Not.Null);
+            Assert.That(ended.Completed, Is.True);
+            Assert.That(ended.Reason, Is.EqualTo("manual"));
+            Assert.That(ended.Messages, Is.EqualTo(1));
+            Assert.That(Find(replies, OscSyncTracker.BeginAddress), Is.Null); // /sys/* にはエコーを返さない
         }
 
+        private static string HttpGet(int port, string target)
+        {
+            using (var client = new TcpClient())
+            {
+                client.Connect(IPAddress.Loopback, port);
+                client.ReceiveTimeout = 3000;
+                var stream = client.GetStream();
+                var request = System.Text.Encoding.ASCII.GetBytes("GET " + target + " HTTP/1.1\r\nHost: localhost\r\n\r\n");
+                stream.Write(request, 0, request.Length);
+                using (var reader = new System.IO.StreamReader(stream, System.Text.Encoding.UTF8))
+                {
+                    var text = reader.ReadToEnd();
+                    StringAssert.StartsWith("HTTP/1.1 200", text);
+                    return text.Substring(text.IndexOf("\r\n\r\n", StringComparison.Ordinal) + 4);
+                }
+            }
+        }
         [UnityTest]
         public IEnumerator Row_listener_delivering_to_another_row_does_not_disturb_the_outer_rows()
         {
